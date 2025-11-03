@@ -2,6 +2,7 @@
 package com.example.tron.data
 
 import androidx.compose.ui.graphics.Color
+import com.example.tron.data.GameStats
 
 // Represents a position on the game grid
 data class Position(val x: Int, val y: Int) {
@@ -90,6 +91,8 @@ data class GameState(
     val roundWinner: Player? = null,
     val isGameFinished: Boolean = false,
     val finalWinner: Player? = null,
+    val isPaused: Boolean = false,
+    val stats: GameStats = GameStats(0, 0, 0),
 
     // Connection Info
     val connectionState: ConnectionState = ConnectionState.IDLE,

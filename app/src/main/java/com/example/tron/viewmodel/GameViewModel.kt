@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 
 private const val TICK_RATE_MS = 200L
 private const val ROUND_DURATION_SECONDS = 60
@@ -22,13 +24,21 @@ private const val GRID_HEIGHT = 30
 private const val BORDER_MARGIN = 5
 
 
-class GameViewModel : ViewModel() {
+class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _gameState = MutableStateFlow(GameState(gameGrid = GameGrid(GRID_WIDTH, GRID_HEIGHT)))
     val gameState = _gameState.asStateFlow()
 
     private var gameLoopJob: Job? = null
+    private val statsRepository = StatsRepository(getApplication())
 
+    init {
+        loadStats()
+    }
+    fun loadStats() {
+        val stats = statsRepository.getStats()
+        _gameState.update { it.copy(stats = stats) }
+    }
     fun onPlayerNameChanged(newName: String) {
         _gameState.update { it.copy(player1 = it.player1.copy(name = newName)) }
     }
@@ -93,9 +103,11 @@ class GameViewModel : ViewModel() {
     }
 
 
-    fun startGameLoop() {
-        val ticksPerGrowth = (TRAIL_GROWTH_INTERVAL_SECONDS * 1000) / TICK_RATE_MS.toInt()
-        _gameState.update { it.copy(ticksUntilNextGrowth = ticksPerGrowth, roundTimeLeft = ROUND_DURATION_SECONDS) }
+    fun startGameLoop(isResuming: Boolean = false) {
+        if (!isResuming) {
+            val ticksPerGrowth = (TRAIL_GROWTH_INTERVAL_SECONDS * 1000) / TICK_RATE_MS.toInt()
+            _gameState.update { it.copy(ticksUntilNextGrowth = ticksPerGrowth, roundTimeLeft = ROUND_DURATION_SECONDS) }
+        }
         gameLoopJob?.cancel()
         gameLoopJob = viewModelScope.launch {
             while (true) {
@@ -256,14 +268,23 @@ class GameViewModel : ViewModel() {
         val updatedP1 = if (winner?.name == currentState.player1.name) currentState.player1.copy(score = currentState.player1.score + 1) else currentState.player1
         val updatedP2 = if (winner?.name == currentState.player2?.name) currentState.player2?.copy(score = currentState.player2.score + 1) else currentState.player2
 
-        val isGameFinished = updatedP1.score >= 3 || updatedP2?.score ?: 0 >= 3
+        val isGameFinished = updatedP1.score >= 10 || updatedP2?.score ?: 0 >= 10
+
+        if (isGameFinished) {
+            val didPlayer1Win = winner != null && winner.name == updatedP1.name
+            statsRepository.recordGameResult(
+                didPlayerWin = didPlayer1Win,
+                isAiOpponent = currentState.isAiOpponent
+            )
+            loadStats()
+        }
 
         _gameState.update {
             it.copy(
                 player1 = updatedP1,
                 player2 = updatedP2,
-                roundWinner = winner,
                 isRoundOver = true,
+                roundWinner = winner,
                 isGameFinished = isGameFinished
             )
         }
@@ -273,7 +294,7 @@ class GameViewModel : ViewModel() {
         val currentState = _gameState.value
         selectTeam(currentState.player1.color!!)
         _gameState.update { it.copy(isRoundOver = false, roundWinner = null) }
-        startGameLoop()
+        startGameLoop(isResuming = false)
     }
 
     fun changeDirection(newDirection: Direction) {
@@ -287,5 +308,15 @@ class GameViewModel : ViewModel() {
 
     fun resetGame() {
         _gameState.value = GameState(gameGrid = GameGrid(GRID_WIDTH, GRID_HEIGHT))
+    }
+
+    fun pauseGame() {
+        gameLoopJob?.cancel() // Detiene el bucle del juego
+        _gameState.update { it.copy(isPaused = true) }
+    }
+
+    fun resumeGame() {
+        _gameState.update { it.copy(isPaused = false) }
+        startGameLoop(isResuming = true) // Reinicia el bucle sin resetear el tiempo
     }
 }

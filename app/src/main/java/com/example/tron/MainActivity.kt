@@ -1,6 +1,7 @@
 package com.example.tron
 
 import android.app.Activity
+import android.app.Application
 // import android.media.MediaPlayer // Temporalmente comentado
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -66,7 +69,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TronApp(gameViewModel: GameViewModel = viewModel()) {
+fun TronApp(gameViewModel: GameViewModel = viewModel(
+    factory = GameViewModelFactory(LocalContext.current.applicationContext as Application))){
     val navController = rememberNavController()
     val gameState by gameViewModel.gameState.collectAsState()
     val activity = (LocalContext.current as? Activity)
@@ -76,7 +80,7 @@ fun TronApp(gameViewModel: GameViewModel = viewModel()) {
             PlayerSetupScreen(
                 gameState = gameState,
                 onPlayerNameChange = gameViewModel::onPlayerNameChanged,
-                onContinueClick = { navController.navigate(Screen.GameModeSelection.route) } // Navigate to mode selection
+                onContinueClick = { navController.navigate(Screen.GameModeSelection.route) }
             )
         }
 
@@ -119,7 +123,9 @@ fun TronApp(gameViewModel: GameViewModel = viewModel()) {
         composable(Screen.Game.route) {
             GameScreen(
                 gameState = gameState,
-                onDirectionChange = gameViewModel::changeDirection
+                onDirectionChange = gameViewModel::changeDirection,
+                onPauseClick = gameViewModel::pauseGame,
+                onResumeClick = gameViewModel::resumeGame
             )
 
             LaunchedEffect(gameState.isRoundOver) {
@@ -170,5 +176,15 @@ fun TronApp(gameViewModel: GameViewModel = viewModel()) {
 fun DefaultPreview() {
     TRONTheme {
         TronApp()
+    }
+}
+
+class GameViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GameViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return GameViewModel(application) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.tron.data.GameState
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun PlayerSetupScreen(
@@ -22,7 +26,7 @@ fun PlayerSetupScreen(
     onContinueClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -37,6 +41,11 @@ fun PlayerSetupScreen(
         Button(onClick = onContinueClick) {
             Text(text = "Continuar")
         }
+        Spacer(modifier = Modifier.height(64.dp))
+        Text(text = "Estadísticas (vs IA)", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Partidas Jugadas: ${gameState.stats.gamesPlayed}", fontSize = 16.sp)
+        Text("Victorias (Jugador): ${gameState.stats.playerWins}", fontSize = 16.sp)
+        Text("Victorias (IA): ${gameState.stats.aiWins}", fontSize = 16.sp)
     }
 }
 

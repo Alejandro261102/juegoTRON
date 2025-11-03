@@ -2,6 +2,8 @@ package com.example.tron.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -30,43 +33,75 @@ import com.example.tron.data.*
 @Composable
 fun GameScreen(
     gameState: GameState,
-    onDirectionChange: (Direction) -> Unit
+    onDirectionChange: (Direction) -> Unit,
+    onPauseClick: () -> Unit,
+    onResumeClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        GameHeader(gameState)
-        GameBoard(gameState)
-        GameControls(onDirectionChange = onDirectionChange)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Controles de Dirección a la Izquierda
+            DirectionalControls(
+                onDirectionChange = onDirectionChange,
+                modifier = Modifier.weight(0.25f)
+            )
+
+            // Área de Juego (Centro)
+            Column(
+                modifier = Modifier
+                    .weight(0.5f)
+                    .fillMaxHeight(), // Ocupa toda la altura
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GameHeader(gameState, onPauseClick = onPauseClick)
+                GameBoard(gameState)
+            }
+
+            // Controles de Acción a la Derecha
+            ActionControls(
+                modifier = Modifier.weight(0.25f)
+            )
+        }
+
+        // Superposición de Pausa (de la implementación anterior)
+        if (gameState.isPaused) {
+            PauseOverlay(onResumeClick = onResumeClick)
+        }
     }
 }
 
+// Encabezado (con botón de pausa añadido)
 @Composable
-private fun GameHeader(gameState: GameState) {
+private fun GameHeader(gameState: GameState, onPauseClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "${gameState.player1.name}: ${gameState.player1.score}",
             color = gameState.player1.color?.color ?: Color.White,
-            fontSize = 16.sp
+            fontSize = 14.sp // Ligeramente más pequeño
         )
         Text(
-            text = "Tiempo: ${gameState.roundTimeLeft / 60}:${(gameState.roundTimeLeft % 60).toString().padStart(2, '0')}",
-            color = Color.White, 
-            fontSize = 20.sp, 
+            text = "${gameState.roundTimeLeft / 60}:${(gameState.roundTimeLeft % 60).toString().padStart(2, '0')}",
+            color = Color.White,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
+        Button(onClick = onPauseClick, modifier = Modifier.padding(0.dp)) { // Botón de pausa
+            Text("II", color = Color.White, fontSize = 14.sp)
+        }
         Text(
-            text = "${gameState.player2?.name ?: "Player 2"}: ${gameState.player2?.score ?: 0}",
+            text = "${gameState.player2?.name ?: "P2"}: ${gameState.player2?.score ?: 0}",
             color = gameState.player2?.color?.color ?: Color.White,
-            fontSize = 16.sp
+            fontSize = 14.sp
         )
     }
 }
@@ -76,20 +111,18 @@ private fun GameBoard(gameState: GameState) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .fillMaxHeight() // Ocupa el espacio restante
             .aspectRatio(gameState.gameGrid.width.toFloat() / gameState.gameGrid.height.toFloat())
             .background(Color.Black)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) { 
+        Canvas(modifier = Modifier.fillMaxSize()) {
             drawGrid(gameState.gameGrid)
-
-            // Draw player 2's trail and bike
+            // ... (Dibujado de estelas y jugadores, sin cambios)
             gameState.player2?.let {
                 val color = it.color?.color ?: return@let
                 drawTrail(it.trail, color, gameState.gameGrid)
                 it.bikePosition?.let { pos -> drawPlayer(pos, color, gameState.gameGrid) }
             }
-            
-            // Draw player 1's trail and bike
             gameState.player1.let {
                 val color = it.color?.color ?: return@let
                 drawTrail(it.trail, color, gameState.gameGrid)
@@ -98,6 +131,42 @@ private fun GameBoard(gameState: GameState) {
         }
     }
 }
+
+// --- CONTROLES DIVIDIDOS EN DOS COMPOSABLES ---
+
+@Composable
+private fun DirectionalControls(
+    onDirectionChange: (Direction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Button(onClick = { onDirectionChange(Direction.UP) }) { Text("▲") }
+        Row(horizontalArrangement = Arrangement.Center) {
+            Button(onClick = { onDirectionChange(Direction.LEFT) }) { Text("◀") }
+            Spacer(modifier = Modifier.width(32.dp)) // Espacio para los pulgares
+            Button(onClick = { onDirectionChange(Direction.RIGHT) }) { Text("▶") }
+        }
+        Button(onClick = { onDirectionChange(Direction.DOWN) }) { Text("▼") }
+    }
+}
+
+@Composable
+private fun ActionControls(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Button(onClick = { /*TODO*/ }, enabled = false) { Text("Acel.") }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { /*TODO*/ }, enabled = false) { Text("Freno") }
+    }
+}
+
 
 private fun DrawScope.drawGrid(grid: GameGrid) {
     val (cellWidth, cellHeight) = Pair(size.width / grid.width, size.height / grid.height)
@@ -168,6 +237,7 @@ private fun GameControls(onDirectionChange: (Direction) -> Unit) {
 @Composable
 fun GameScreenPreview() {
     val previewState = GameState(
+        // ... (el código de previewState se queda igual)
         player1 = Player(
             name = "Alfredo",
             score = 3,
@@ -183,5 +253,29 @@ fun GameScreenPreview() {
             trail = listOf(Position(37, 15), Position(36, 15), Position(35, 15))
         )
     )
-    GameScreen(gameState = previewState, onDirectionChange = {})
+    GameScreen(
+        gameState = previewState,
+        onDirectionChange = {},
+        onPauseClick = {},
+        onResumeClick = {}
+    )
+}
+
+@Composable
+fun PauseOverlay(onResumeClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            .clickable(enabled = false, onClick = {}),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "PAUSA", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(onClick = onResumeClick) {
+                Text(text = "Reanudar", fontSize = 24.sp)
+            }
+        }
+    }
 }
